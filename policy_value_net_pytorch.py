@@ -19,41 +19,54 @@ def set_learning_rate(optimizer, lr):
         param_group['lr'] = lr
 
 
-class Net(nn.Module):
+class Net(nn.Module): 
+    # 陈俊康修改，增加6个输入特征平面后，修改对应的网络结构，并加入残差连接
     """policy-value network module"""
     def __init__(self, board_width, board_height):
         super(Net, self).__init__()
 
+        self.feature_num = 10
         self.board_width = board_width
         self.board_height = board_height
         # common layers
-        self.conv1 = nn.Conv2d(4, 32, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(self.feature_num, 32, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.skip_conv = nn.Conv2d(self.feature_num, 128, kernel_size=3, padding=1)
         # action policy layers
-        self.act_conv1 = nn.Conv2d(128, 4, kernel_size=1)
-        self.act_fc1 = nn.Linear(4*board_width*board_height,
+        self.act_conv1 = nn.Conv2d(128, self.feature_num, kernel_size=1)
+        self.act_fc1 = nn.Linear(self.feature_num*board_width*board_height,
                                  board_width*board_height)
         # state value layers
-        self.val_conv1 = nn.Conv2d(128, 2, kernel_size=1)
-        self.val_fc1 = nn.Linear(2*board_width*board_height, 64)
+        self.val_conv1 = nn.Conv2d(128, self.feature_num // 2, kernel_size=1)
+        self.val_fc1 = nn.Linear(self.feature_num // 2 *board_width*board_height, 64)
         self.val_fc2 = nn.Linear(64, 1)
-
+        
     def forward(self, state_input):
         # common layers
         x = F.relu(self.conv1(state_input))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
+        x = x + F.relu(self.skip_conv(state_input))
+        # [1, 128, 15, 15]
         # action policy layers
         x_act = F.relu(self.act_conv1(x))
-        x_act = x_act.view(-1, 4*self.board_width*self.board_height)
-        x_act = F.log_softmax(self.act_fc1(x_act),dim=-1)
+        # [1, 128, 15, 15]
+        x_act = x_act.view(-1, self.feature_num * self.board_width * self.board_height)
+        # [1, 128*15*15]
+        x_act = self.act_fc1(x_act)
+        # print("x_act before log_softmax:", x_act.shape)
+        # [1, 15*15]
+        x_act = F.log_softmax(x_act, dim=1)
         # state value layers
         x_val = F.relu(self.val_conv1(x))
-        x_val = x_val.view(-1, 2*self.board_width*self.board_height)
+        # [1, 5, 15, 15]
+        x_val = x_val.view(-1, self.feature_num // 2 * self.board_width * self.board_height)
+        # [1, 5*15*15]
         x_val = F.relu(self.val_fc1(x_val))
         x_val = F.tanh(self.val_fc2(x_val))
         return x_act, x_val
+
 
 
 class PolicyValueNet():
