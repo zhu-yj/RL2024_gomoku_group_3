@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-@author: Junxiao Song
-"""
+
 
 from __future__ import print_function
 import numpy as np
@@ -188,7 +186,7 @@ class Game(object):
                 return winner
             
     def start_botzone_play(self, player1, player2, all_requests, all_responses, start_player=0, is_shown=1):
-        
+        # 朱永健，对应botzone交互
         """start a game between two players"""
         if start_player not in (0, 1):
             raise Exception('start_player should be either 0 (player1 first) '
@@ -251,6 +249,7 @@ class Game(object):
             
 
     def start_botzone_play2(self, player1, player2, start_player=0, is_shown=1):
+        # 朱永健，对应陈俊康对增加特征的改进，实现改进后与botzone交互
         """start a game between two players"""
         if start_player not in (0, 1):
             raise Exception('start_player should be either 0 (player1 first) '
