@@ -15,9 +15,14 @@ class Board(object):
         # key: move as location on the board,
         # value: player as pieces type
         self.states = {}
+        self.history_states = deque(maxlen=3)
+        for _ in range(3):
+            self.history_states.append(np.zeros([4,self.width,self.width]))
+        self.temp_states = np.zeros([10,self.width,self.width])
         # need how many pieces in a row to win
         self.n_in_row = int(kwargs.get('n_in_row', 5))
         self.players = [1, 2]  # player1 and player2
+
 
     def init_board(self, start_player=0):
         if self.width < self.n_in_row or self.height < self.n_in_row:
@@ -27,7 +32,12 @@ class Board(object):
         # keep available moves in a list
         self.availables = list(range(self.width * self.height))
         self.states = {}
+        self.history_states = deque(maxlen=3)
+        for _ in range(3):
+            self.history_states.append(np.zeros([4,self.width,self.width]))
+        self.temp_states = np.zeros([10,self.width,self.width])
         self.last_move = -1
+
 
     def move_to_location(self, move):
         """
@@ -159,20 +169,40 @@ class Game(object):
 
     def start_play(self, player1, player2, start_player=0, is_shown=1):
         """start a game between two players"""
+        # 陈俊康修改，调整了特征平面的输入（加入历史3步）
         if start_player not in (0, 1):
             raise Exception('start_player should be either 0 (player1 first) '
                             'or 1 (player2 first)')
         self.board.init_board(start_player)
-        p1, p2 = self.board.players # p1=1, p2=2
+        # print("a")
+        p1, p2 = self.board.players
+        # print("b")
         player1.set_player_ind(p1)
+        # print("c")
         player2.set_player_ind(p2)
+        # print("d")
         players = {p1: player1, p2: player2}
+        # print("e")
         if is_shown:
+            # print("f")
             self.graphic(self.board, player1.player, player2.player)
         while True:
+            # print("g")
             current_player = self.board.get_current_player()
             player_in_turn = players[current_player]
             move = player_in_turn.get_action(self.board)
+            print("self.board.temp_states[0]", self.board.temp_states[0])
+            current_state = self.board.current_state()
+            temp_states = []
+            for his_state in self.board.history_states:
+                temp_states.append(his_state[:2])
+                # print("his_state", his_state.shape)
+            temp_states.append(current_state)
+            # print("current_states", current_state.shape)
+            temp_states = np.concatenate(temp_states, axis=0)
+            # print("temp_states.shape:", temp_states.shape)  
+            self.board.temp_states = temp_states
+            self.board.history_states.append(current_state)
             self.board.do_move(move)
             if is_shown:
                 self.graphic(self.board, player1.player, player2.player)
@@ -183,6 +213,7 @@ class Game(object):
                         print("Game end. Winner is", players[winner])
                     else:
                         print("Game end. Tie")
+                    
                 return winner
             
     def start_botzone_play(self, player1, player2, all_requests, all_responses, start_player=0, is_shown=1):
@@ -303,6 +334,7 @@ class Game(object):
         """ start a self-play game using a MCTS player, reuse the search tree,
         and store the self-play data: (state, mcts_probs, z) for training
         """
+        # 陈俊康修改，调整了特征平面的输入（加入历史3步）
         self.board.init_board()
         p1, p2 = self.board.players
         states, mcts_probs, current_players = [], [], []
@@ -311,7 +343,18 @@ class Game(object):
                                                  temp=temp,
                                                  return_prob=1)
             # store the data
-            states.append(self.board.current_state())
+            current_state = self.board.current_state()
+            temp_states = []
+            for his_state in self.board.history_states:
+                temp_states.append(his_state[:2])
+                # print("his_state", his_state.shape)
+            temp_states.append(current_state)
+            # print("current_states", current_state.shape)
+            temp_states = np.concatenate(temp_states, axis=0)
+            # print("temp_states.shape:", temp_states.shape)  
+            self.board.temp_states = temp_states
+            self.board.history_states.append(current_state)
+            states.append(self.board.temp_states)
             mcts_probs.append(move_probs)
             current_players.append(self.board.current_player)
             # perform a move
@@ -332,4 +375,7 @@ class Game(object):
                         print("Game end. Winner is player:", winner)
                     else:
                         print("Game end. Tie")
+                # print("states:", len(states), states[0].shape)
+                # print("mcts_probs:", len(mcts_probs), mcts_probs[0].shape)
+                # print("winners_z:", winners_z.shape, winners_z)
                 return winner, zip(states, mcts_probs, winners_z)
