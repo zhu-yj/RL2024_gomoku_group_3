@@ -5,7 +5,9 @@ from game import Board, Game
 from mcts_pure import MCTSPlayer as MCTS_Pure
 from mcts_alphaZero import MCTSPlayer
 from policy_value_net_pytorch import PolicyValueNet 
-# botzone 每次会运行main，没有保存历史的，所以要将历史输入到board中，但是如果等待网络输出做出回应，可能随着时间延长会变慢，所以直接用do_move更新board了，如果没有用到历史的state可能是可行的，但是要用到start_play，其实可以参考下俊康的处理
+# author: 朱永健
+# botzone 每次会运行main，没有保存历史的，所以要将历史输入到board中
+# 但是如果等待网络输出做出回应，可能随着时间延长会变慢，所以直接用do_move更新board了，如果没有用到历史的state可能是可行的，但是要用到start_play，其实可以参考下俊康的处理
 
 class BotzoneHuman(object):
     """
